@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import '../../constants/colors.dart';
 import '../../services/onboarding_service.dart';
 
@@ -19,19 +18,19 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       title: 'Presensi Kilat, Sekali Geser.',
       description:
           'Mulai harimu tanpa hambatan. Lakukan clock-in instan hanya dengan satu usapan jari.',
-      imagePath: 'assets/images/onboarding-1.svg',
+      imagePath: 'assets/images/onboarding-1.png',
     ),
     OnboardingItem(
       title: 'Delegasi Tugas Lebih Simple',
       description:
           'Delegasiin tugas pekerjaan untuk cuti Anda dalam satu tampilan bersih dan rapi.',
-      imagePath: 'assets/images/onboarding-2.svg',
+      imagePath: 'assets/images/onboarding-2.png',
     ),
     OnboardingItem(
       title: 'Semua Dalam Satu Genggaman',
       description:
           'Dapatkan semua informasi dan rincian secara digital kapan saja dan dimana saja dalam satu genggaman',
-      imagePath: 'assets/images/onboarding-3.svg',
+      imagePath: 'assets/images/onboarding-3.png',
     ),
   ];
 
@@ -145,18 +144,11 @@ class OnboardingPage extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  SvgPicture.asset(
+                  Image.asset(
                     item.imagePath,
                     width: 300,
                     height: 300,
-                    placeholderBuilder: (context) => Container(
-                      width: 300,
-                      height: 300,
-                      color: AppColors.lightGray,
-                      child: const Center(
-                        child: CircularProgressIndicator(),
-                      ),
-                    ),
+                    fit: BoxFit.contain,
                   ),
                 ],
               ),
