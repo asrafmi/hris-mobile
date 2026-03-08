@@ -421,7 +421,7 @@ class _AttendanceListScreenState extends State<AttendanceListScreen> {
                       child: const Text(
                         'Check Out',
                         style: TextStyle(
-                          fontSize: 16,
+                          fontSize: 14,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -502,7 +502,7 @@ class _AttendanceListScreenState extends State<AttendanceListScreen> {
         child: Text(
           label,
           style: TextStyle(
-            fontSize: 16,
+            fontSize: 14,
             fontWeight: FontWeight.w500,
             color: onTap != null ? color : color.withValues(alpha: 0.5),
           ),
