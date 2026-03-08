@@ -6,6 +6,8 @@ import '../../models/leave_request.dart';
 import '../../services/auth_service.dart';
 import '../../services/attendance_service.dart';
 import '../../services/leave_service.dart';
+import '../attendance/attendance_list_screen.dart';
+import '../attendance/checkout_sheets.dart';
 
 class StaffDashboardScreen extends StatefulWidget {
   const StaffDashboardScreen({super.key});
@@ -16,6 +18,7 @@ class StaffDashboardScreen extends StatefulWidget {
 
 class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
   int _selectedIndex = 0;
+  int _homeRefreshToken = 0;
 
   Future<void> _handleLogout() async {
     final confirmed = await showDialog<bool>(
@@ -53,11 +56,8 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
       body: IndexedStack(
         index: _selectedIndex,
         children: [
-          _HomeTab(employee: employee),
-          _PlaceholderTab(
-            label: 'Absensi',
-            icon: Icons.event_available_outlined,
-          ),
+          _HomeTab(employee: employee, refreshToken: _homeRefreshToken),
+          AttendanceListScreen(employee: employee),
           _PlaceholderTab(
             label: 'Reimburs',
             icon: Icons.receipt_long_outlined,
@@ -87,7 +87,10 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
               _NavItem(
                 icon: Icons.grid_view_rounded,
                 isActive: _selectedIndex == 0,
-                onTap: () => setState(() => _selectedIndex = 0),
+                onTap: () => setState(() {
+                  if (_selectedIndex != 0) _homeRefreshToken++;
+                  _selectedIndex = 0;
+                }),
               ),
               _NavItem(
                 icon: Icons.event_available_outlined,
@@ -160,8 +163,9 @@ class _NavItem extends StatelessWidget {
 
 class _HomeTab extends StatefulWidget {
   final Employee employee;
+  final int refreshToken;
 
-  const _HomeTab({required this.employee});
+  const _HomeTab({required this.employee, this.refreshToken = 0});
 
   @override
   State<_HomeTab> createState() => _HomeTabState();
@@ -177,6 +181,14 @@ class _HomeTabState extends State<_HomeTab> {
   void initState() {
     super.initState();
     _loadData();
+  }
+
+  @override
+  void didUpdateWidget(_HomeTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.refreshToken != widget.refreshToken) {
+      _loadData();
+    }
   }
 
   Future<void> _loadData() async {
@@ -208,24 +220,54 @@ class _HomeTabState extends State<_HomeTab> {
       // Reload attendance data when returning from check-in flow
       _loadData();
     } else if (_attendance?.clockOut == null) {
-      // Direct clock-out
-      setState(() => _isActionLoading = true);
-      try {
-        final result = await AttendanceService.clockOut(_attendance!.id);
-        setState(() => _attendance = result);
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(e.toString().replaceFirst('Exception: ', '')),
-              backgroundColor: Colors.red.shade600,
-            ),
-          );
-        }
-      } finally {
-        if (mounted) setState(() => _isActionLoading = false);
-      }
+      final todayHours = _calcTodayHours();
+      await showCheckoutConfirmSheet(
+        context,
+        todayHours: todayHours,
+        onConfirm: () async {
+          Navigator.pop(context);
+          setState(() => _isActionLoading = true);
+          try {
+            final result = await AttendanceService.clockOut(_attendance!.id);
+            if (mounted) setState(() => _attendance = result);
+            if (mounted) {
+              await showCheckoutSuccessSheet(
+                context,
+                onClose: () {
+                  Navigator.pop(context);
+                  _loadData();
+                },
+              );
+            }
+          } catch (e) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(e.toString().replaceFirst('Exception: ', '')),
+                  backgroundColor: Colors.red.shade600,
+                ),
+              );
+            }
+          } finally {
+            if (mounted) setState(() => _isActionLoading = false);
+          }
+        },
+      );
     }
+  }
+
+  String _calcTodayHours() {
+    final att = _attendance;
+    if (att == null || att.clockIn == null) return '00:00';
+    final start = DateTime.parse(att.clockIn!).toLocal();
+    final end =
+        att.clockOut != null
+            ? DateTime.parse(att.clockOut!).toLocal()
+            : DateTime.now();
+    final diff = end.difference(start);
+    final h = diff.inHours;
+    final m = diff.inMinutes.remainder(60);
+    return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}';
   }
 
   String _formatTime(String? isoString) {
