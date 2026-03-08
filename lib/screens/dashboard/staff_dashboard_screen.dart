@@ -198,26 +198,33 @@ class _HomeTabState extends State<_HomeTab> {
   }
 
   Future<void> _handleAttendanceAction() async {
-    setState(() => _isActionLoading = true);
-    try {
-      if (_attendance?.clockIn == null) {
-        final result = await AttendanceService.clockIn(widget.employee.id);
-        setState(() => _attendance = result);
-      } else if (_attendance?.clockOut == null) {
+    if (_attendance?.clockIn == null) {
+      // Navigate to the full check-in flow
+      await Navigator.pushNamed(
+        context,
+        '/checkin/location',
+        arguments: widget.employee,
+      );
+      // Reload attendance data when returning from check-in flow
+      _loadData();
+    } else if (_attendance?.clockOut == null) {
+      // Direct clock-out
+      setState(() => _isActionLoading = true);
+      try {
         final result = await AttendanceService.clockOut(_attendance!.id);
         setState(() => _attendance = result);
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(e.toString().replaceFirst('Exception: ', '')),
+              backgroundColor: Colors.red.shade600,
+            ),
+          );
+        }
+      } finally {
+        if (mounted) setState(() => _isActionLoading = false);
       }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString().replaceFirst('Exception: ', '')),
-            backgroundColor: Colors.red.shade600,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isActionLoading = false);
     }
   }
 

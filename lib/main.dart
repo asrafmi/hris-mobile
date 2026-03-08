@@ -7,6 +7,9 @@ import 'screens/login/login_screen.dart';
 import 'screens/register/register_screen.dart';
 import 'screens/dashboard/staff_dashboard_screen.dart';
 import 'screens/dashboard/admin_dashboard_screen.dart';
+import 'screens/attendance/checkin_location_screen.dart';
+import 'screens/attendance/checkin_camera_screen.dart';
+import 'screens/attendance/checkin_review_screen.dart';
 import 'constants/colors.dart';
 
 Future<void> main() async {
@@ -43,6 +46,9 @@ class MyApp extends StatelessWidget {
         '/register': (context) => const RegisterScreen(),
         '/dashboard/staff': (context) => const StaffDashboardScreen(),
         '/dashboard/admin': (context) => const AdminDashboardScreen(),
+        '/checkin/location': (context) => const CheckinLocationScreen(),
+        '/checkin/camera': (context) => const CheckinCameraScreen(),
+        '/checkin/review': (context) => const CheckinReviewScreen(),
       },
     );
   }
