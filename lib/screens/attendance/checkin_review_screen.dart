@@ -1,4 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import '../../models/employee.dart';
+import '../../services/attendance_service.dart';
 
 class CheckinReviewScreen extends StatefulWidget {
   const CheckinReviewScreen({super.key});
@@ -9,6 +12,22 @@ class CheckinReviewScreen extends StatefulWidget {
 
 class _CheckinReviewScreenState extends State<CheckinReviewScreen> {
   final _notesController = TextEditingController();
+  bool _isLoading = false;
+
+  late String _imagePath;
+  late Employee _employee;
+  double? _lat;
+  double? _lng;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+    _imagePath = args['imagePath'] as String;
+    _employee = args['employee'] as Employee;
+    _lat = args['lat'] as double?;
+    _lng = args['lng'] as double?;
+  }
 
   @override
   void dispose() {
@@ -17,10 +36,28 @@ class _CheckinReviewScreenState extends State<CheckinReviewScreen> {
   }
 
   Future<void> _handleCheckIn() async {
-    // Dismiss keyboard
     FocusScope.of(context).unfocus();
-    // Show success bottom sheet
-    await _showSuccessSheet();
+    setState(() => _isLoading = true);
+    try {
+      await AttendanceService.clockIn(
+        _employee.id,
+        notes: _notesController.text.trim().isEmpty
+            ? null
+            : _notesController.text.trim(),
+      );
+      if (mounted) await _showSuccessSheet();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal check in: ${e.toString().replaceFirst('Exception: ', '')}'),
+            backgroundColor: Colors.red.shade600,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   Future<void> _showSuccessSheet() async {
@@ -31,7 +68,6 @@ class _CheckinReviewScreenState extends State<CheckinReviewScreen> {
       backgroundColor: Colors.transparent,
       builder: (ctx) => _SuccessSheet(
         onGoHome: () {
-          // Close sheet and pop back to dashboard
           Navigator.of(ctx).pop();
           Navigator.of(context).popUntil((route) => route.isFirst);
         },
@@ -53,35 +89,46 @@ class _CheckinReviewScreenState extends State<CheckinReviewScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
-      body: Column(
-        children: [
-          // Header
-          _ReviewHeader(onBack: () => Navigator.pop(context)),
-          // Scrollable body
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Photo preview card
-                  _PhotoPreviewCard(
-                    locationText: _getLocationText(),
-                    onRetake: () => Navigator.pop(context),
-                  ),
-                  const SizedBox(height: 12),
-                  // Notes field
-                  _NotesField(controller: _notesController),
-                  // Extra padding for button
-                  const SizedBox(height: 80),
-                ],
+      resizeToAvoidBottomInset: true,
+      body: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        behavior: HitTestBehavior.translucent,
+        child: Column(
+          children: [
+            // Header
+            _ReviewHeader(onBack: () => Navigator.pop(context)),
+            // Scrollable body
+            Expanded(
+              child: SingleChildScrollView(
+                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Photo preview card
+                    _PhotoPreviewCard(
+                      imagePath: _imagePath,
+                      lat: _lat,
+                      lng: _lng,
+                      locationText: _getLocationText(),
+                      onRetake: () => Navigator.pop(context),
+                    ),
+                    const SizedBox(height: 12),
+                    // Notes field
+                    _NotesField(controller: _notesController),
+                    const SizedBox(height: 16),
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
       // Bottom button
-      bottomNavigationBar: _ReviewBottomButton(onCheckIn: _handleCheckIn),
+      bottomNavigationBar: _ReviewBottomButton(
+        isLoading: _isLoading,
+        onCheckIn: _isLoading ? null : _handleCheckIn,
+      ),
     );
   }
 }
@@ -160,10 +207,16 @@ class _ReviewHeader extends StatelessWidget {
 // ─── Photo Preview Card ───────────────────────────────────────────────────────
 
 class _PhotoPreviewCard extends StatelessWidget {
+  final String imagePath;
+  final double? lat;
+  final double? lng;
   final String locationText;
   final VoidCallback onRetake;
 
   const _PhotoPreviewCard({
+    required this.imagePath,
+    required this.lat,
+    required this.lng,
     required this.locationText,
     required this.onRetake,
   });
@@ -177,31 +230,11 @@ class _PhotoPreviewCard extends StatelessWidget {
         width: double.infinity,
         child: Stack(
           children: [
-            // Photo placeholder background
-            Container(
-              color: const Color(0xFF2A2A2A),
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      width: 120,
-                      height: 140,
-                      decoration: BoxDecoration(
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.3),
-                          width: 2,
-                        ),
-                        borderRadius: BorderRadius.circular(60),
-                      ),
-                      child: Icon(
-                        Icons.person,
-                        size: 60,
-                        color: Colors.white.withValues(alpha: 0.4),
-                      ),
-                    ),
-                  ],
-                ),
+            // Captured photo
+            Positioned.fill(
+              child: Image.file(
+                File(imagePath),
+                fit: BoxFit.cover,
               ),
             ),
             // Bottom gradient overlay
@@ -227,19 +260,13 @@ class _PhotoPreviewCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Lat : Mendeteksi...',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.white,
-                    ),
+                  Text(
+                    lat != null ? 'Lat : ${lat!.toStringAsFixed(6)}' : 'Lat : Mendeteksi...',
+                    style: const TextStyle(fontSize: 12, color: Colors.white),
                   ),
-                  const Text(
-                    'Long : Mendeteksi...',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.white,
-                    ),
+                  Text(
+                    lng != null ? 'Long : ${lng!.toStringAsFixed(6)}' : 'Long : Mendeteksi...',
+                    style: const TextStyle(fontSize: 12, color: Colors.white),
                   ),
                   Text(
                     locationText,
@@ -337,8 +364,9 @@ class _NotesField extends StatelessWidget {
 // ─── Bottom Button ────────────────────────────────────────────────────────────
 
 class _ReviewBottomButton extends StatelessWidget {
-  final VoidCallback onCheckIn;
-  const _ReviewBottomButton({required this.onCheckIn});
+  final bool isLoading;
+  final VoidCallback? onCheckIn;
+  const _ReviewBottomButton({required this.isLoading, required this.onCheckIn});
 
   @override
   Widget build(BuildContext context) {
@@ -360,13 +388,19 @@ class _ReviewBottomButton extends StatelessWidget {
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
-            icon: const Icon(Icons.event_available_outlined, size: 20),
-            label: const Text(
-              'Check In Absensi',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-              ),
+            icon: isLoading
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Icon(Icons.event_available_outlined, size: 20),
+            label: Text(
+              isLoading ? 'Menyimpan...' : 'Check In Absensi',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
             ),
           ),
         ),

@@ -270,7 +270,10 @@ class _HomeTabState extends State<_HomeTab> {
         ),
         // Scrollable content
         SafeArea(
-          child: SingleChildScrollView(
+          child: RefreshIndicator(
+            onRefresh: _loadData,
+            color: const Color(0xFF007EE9),
+            child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -298,6 +301,7 @@ class _HomeTabState extends State<_HomeTab> {
                 const SizedBox(height: 32),
               ],
             ),
+          ),
           ),
         ),
       ],

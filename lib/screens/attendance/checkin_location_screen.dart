@@ -104,7 +104,11 @@ class _CheckinLocationScreenState extends State<CheckinLocationScreen> {
         onTap: () => Navigator.pushNamed(
           context,
           '/checkin/camera',
-          arguments: employee,
+          arguments: {
+            'employee': employee,
+            'lat': _position?.latitude,
+            'lng': _position?.longitude,
+          },
         ),
       ),
       body: Column(

@@ -18,15 +18,17 @@ class AttendanceService {
     return Attendance.fromJson(response);
   }
 
-  static Future<Attendance> clockIn(String employeeId) async {
+  static Future<Attendance> clockIn(String employeeId, {String? notes}) async {
     final today = DateTime.now().toIso8601String().split('T')[0];
+    final data = <String, dynamic>{
+      'employee_id': employeeId,
+      'work_date': today,
+      'clock_in': DateTime.now().toUtc().toIso8601String(),
+    };
+    if (notes != null && notes.isNotEmpty) data['notes'] = notes;
     final response = await _client
         .from('attendance')
-        .insert({
-          'employee_id': employeeId,
-          'work_date': today,
-          'clock_in': DateTime.now().toIso8601String(),
-        })
+        .insert(data)
         .select()
         .single();
     return Attendance.fromJson(response);
@@ -41,7 +43,7 @@ class AttendanceService {
     }
     final response = await _client
         .from('attendance')
-        .update({'clock_out': now.toIso8601String()})
+        .update({'clock_out': now.toUtc().toIso8601String()})
         .eq('id', attendanceId)
         .select()
         .single();
